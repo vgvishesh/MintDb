@@ -11,6 +11,7 @@ type Database interface {
 	Init()
 	Get(key string) (string, bool)
 	Set(key string, value string) bool
+	Delete(key string) bool
 }
 
 type StorageEngineType int
@@ -71,6 +72,11 @@ func (s *StorageEngineInMemory) Get(key string) (string, bool) {
 	return value, ok
 }
 
+func (s *StorageEngineInMemory) Delete(key string) bool {
+	delete(s.kvStore, key)
+	return true
+}
+
 func (d *DiskStorageEngine) Set(key string, value string) bool {
 	d.kvStore[key] = value
 	d.fileHandle.Seek(0, 2)
@@ -87,8 +93,15 @@ func (d *DiskStorageEngine) Init() {
 	d.fileHandle.Seek(0, 0)
 	scanner := bufio.NewScanner(d.fileHandle)
 	for scanner.Scan() {
-		data := strings.Split((scanner.Text()), ",")
-		d.kvStore[data[0]] = data[1]
+		record := scanner.Text()
+		//detected a tombstone record
+		if strings.Contains(record, "Delete:") {
+			key := strings.Split(record, ":")[1]
+			delete(d.kvStore, key)
+		} else {
+			data := strings.Split(record, ",")
+			d.kvStore[data[0]] = data[1]
+		}
 	}
 }
 
@@ -98,4 +111,17 @@ func (s *DiskStorageEngine) Get(key string) (string, bool) {
 		return "", ok
 	}
 	return value, ok
+}
+
+func (d *DiskStorageEngine) Delete(key string) bool {
+	delete(d.kvStore, key)
+	d.fileHandle.Seek(0, 2)
+	deleteRecord := "Delete:" + key + "\n" //tombstone record
+	_, err := d.fileHandle.WriteString(deleteRecord)
+	if err != nil {
+		fmt.Println("failed to persist the delete record")
+		return false
+	}
+
+	return true
 }

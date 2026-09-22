@@ -37,6 +37,16 @@ func main() {
 			} else {
 				fmt.Println("error in storage")
 			}
+		case "DELETE":
+			if len(parts) < 2 {
+				fmt.Println("usage: DELETE key")
+				break
+			}
+			if  ok := db.Delete(parts[1]); ok {
+				fmt.Println(ok)
+			} else {
+				fmt.Println(ok)
+			}
 		case "EXIT", "QUIT":
 			return
 		case "":
