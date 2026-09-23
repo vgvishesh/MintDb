@@ -1,15 +1,35 @@
 package main
 
 import (
+	pb "MintDb/proto"
 	"bufio"
 	"fmt"
+	"log"
+	"net"
 	"os"
 	"strings"
+
+	"google.golang.org/grpc"
 )
 
 func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	db := NewDatabase(Disk)
+	server := grpc.NewServer()
+	
+	go func()  {
+		pb.RegisterMintDbServer(server, NewGrpcServer(&db))
+		lis, err := net.Listen("tcp", ":8900")
+		if err != nil {
+			log.Fatalf("failed to listen: %v", err)
+			return;
+		}
+		log.Printf("server listening at %v", lis.Addr())
+		if err := server.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()	
+	
 	fmt.Print("> ")
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -48,6 +68,7 @@ func main() {
 				fmt.Println(ok)
 			}
 		case "EXIT", "QUIT":
+			server.GracefulStop()
 			return
 		case "":
 			// ignore blank lines
