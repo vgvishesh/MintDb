@@ -27,7 +27,7 @@ type StorageEngineInMemory struct {
 }
 
 type DiskStorageEngine struct {
-	kvStore    map[string]string
+	inMemKvStore    StorageEngineInMemory
 	fileName   string
 	fileHandle *os.File
 }
@@ -50,7 +50,9 @@ func NewDatabase(engineType StorageEngineType, dataDir string) Database {
 		}
 
 		storage = &DiskStorageEngine{
-			kvStore:    make(map[string]string),
+			inMemKvStore: StorageEngineInMemory{
+				kvStore: make(map[string]string),
+			},
 			fileName:   fileName,
 			fileHandle: file,
 		}
@@ -81,7 +83,7 @@ func (s *StorageEngineInMemory) Delete(key string) bool {
 }
 
 func (d *DiskStorageEngine) Set(key string, value string) bool {
-	d.kvStore[key] = value
+	d.inMemKvStore.Set(key, value)
 	d.fileHandle.Seek(0, 2)
 	dataToWrite := key + "," + value + "\n"
 	_, err := d.fileHandle.WriteString(dataToWrite)
@@ -100,16 +102,18 @@ func (d *DiskStorageEngine) Init() {
 		//detected a tombstone record
 		if strings.Contains(record, "Delete:") {
 			key := strings.Split(record, ":")[1]
-			delete(d.kvStore, key)
+			d.inMemKvStore.Delete(key)
 		} else {
-			data := strings.Split(record, ",")
-			d.kvStore[data[0]] = data[1]
+			separatorIndex := strings.Index(record,",")
+			key:= record[:separatorIndex]
+			value:= record[separatorIndex+1:]
+			d.inMemKvStore.Set(key, value)
 		}
 	}
 }
 
 func (s *DiskStorageEngine) Get(key string) (string, bool) {
-	value, ok := s.kvStore[key]
+	value, ok := s.inMemKvStore.Get(key)
 	if !ok {
 		return "", ok
 	}
@@ -117,7 +121,7 @@ func (s *DiskStorageEngine) Get(key string) (string, bool) {
 }
 
 func (d *DiskStorageEngine) Delete(key string) bool {
-	delete(d.kvStore, key)
+	d.inMemKvStore.Delete(key)
 	d.fileHandle.Seek(0, 2)
 	deleteRecord := "Delete:" + key + "\n" //tombstone record
 	_, err := d.fileHandle.WriteString(deleteRecord)
