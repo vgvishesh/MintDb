@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -31,7 +32,9 @@ type DiskStorageEngine struct {
 	fileHandle *os.File
 }
 
-func NewDatabase(engineType StorageEngineType) Database {
+// NewDatabase creates a storage engine. dataDir is where the Disk engine keeps
+// mint.aof and is ignored by InMemory.
+func NewDatabase(engineType StorageEngineType, dataDir string) Database {
 	var storage Database
 	switch engineType {
 	case InMemory:
@@ -40,7 +43,7 @@ func NewDatabase(engineType StorageEngineType) Database {
 		}
 		storage.Init()
 	case Disk:
-		const fileName = "mint.aof"
+		fileName := filepath.Join(dataDir, "mint.aof")
 		file, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0644)
 		if err != nil {
 			fmt.Println("error initializing database with disk storage", err)

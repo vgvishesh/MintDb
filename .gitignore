@@ -1,2 +1,5 @@
 mint.aof
+.DS_Storetestrun/
 .DS_Store
+testrun/
+server.log
