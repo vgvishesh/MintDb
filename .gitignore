@@ -3,3 +3,4 @@ mint.aof
 .DS_Store
 testrun/
 server.log
+mintdb
